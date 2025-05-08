@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Main application
+  app:
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - EXCALIDRAW_CONVERTER_URL=http://excalidraw-converter:8080
+    depends_on:
+      - excalidraw-converter
+
+  # Excalidraw converter service
+  excalidraw-converter:
+    build:
+      context: ./docker/excalidraw-converter
+    ports:
+      - "8086:8080"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./server/config:/app/config
+    environment:
+      - NODE_ENV=production
+      - PORT=8080
+
+  # Model runner service (using Docker Desktop extension)
+  model-runner:
+    image: docker/model-runner-extension:latest
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - model-runner-cache:/root/.cache
+    ports:
+      - "8087:8080"
+    environment:
+      - ENGINE=llama.cpp
+      - MODEL=ai/llama3.2:1B-Q8_0
+
+volumes:
+  model-runner-cache:
